@@ -9,6 +9,7 @@ public class Pont {
     private String directionVoitures = null;
     private String directionBateaux = null;
     private int bateauxEnAttente = 0;
+    private Etat etat = Etat.FERME;
 
     public Pont() {
     }
@@ -95,5 +96,7 @@ public class Pont {
 
         notifyAll();
     }
+
+
 
 }
