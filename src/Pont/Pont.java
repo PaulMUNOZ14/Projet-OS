@@ -18,8 +18,6 @@ public class Pont {
     private boolean convoiEnAttente = false;
     private boolean convoiEnCours = false;
     private Direction directionConvoi = null;
-    private int vehiculesGaucheDroite = 0;
-    private int vehiculesDroiteGauche = 0;
 
     public Pont() {
     }
@@ -196,9 +194,6 @@ public class Pont {
             wait();
         }
 
-
-
-
     }
     private synchronized void libererSegments(String nom, int debut, int longueur, int pas){
         for (int i = 0; i < longueur; i++) {
@@ -221,6 +216,9 @@ public class Pont {
     }
 
     public synchronized void entrerConvoi(Direction direction, String nom) throws InterruptedException {
+        while (convoiEnAttente || convoiEnCours) {
+            wait();
+        }
 
         convoiEnAttente = true;
         directionConvoi = direction;
@@ -232,7 +230,7 @@ public class Pont {
         System.out.println("Blocage des nouvelles entrées : " + opposee);
 
         // Attendre la sortie des véhicules opposés
-        while ((opposee == Direction.GAUCHE_DROITE && vehiculesGaucheDroite > 0) || (opposee == Direction.DROITE_GAUCHE && vehiculesDroiteGauche > 0) || convoiEnCours || etat != Etat.FERME) {
+        while ((voituresSurPont > 0 && directionVoitures == opposee) || convoiEnCours || etat != Etat.FERME) {
             wait();
         }
 
