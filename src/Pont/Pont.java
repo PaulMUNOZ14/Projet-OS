@@ -12,16 +12,21 @@ public class Pont {
     private Etat etat = Etat.FERME;
     private boolean ouvertureDemandee = false;
     private final int N = 10;
-    private final String[] segments = new String[10];
+    private final String[] segments = new String[N];
     private Direction directionActive = null;
     private int vehiculesEngages = 0;
+    private boolean convoiEnAttente = false;
+    private boolean convoiEnCours = false;
+    private Direction directionConvoi = null;
+    private int vehiculesGaucheDroite = 0;
+    private int vehiculesDroiteGauche = 0;
 
     public Pont() {
     }
 
     public synchronized void entrerVoiture(Direction direction, String nom) {
 
-        while(etat != Etat.FERME || bateauSousPont > 0 || bateauxEnAttente > 0 || (voituresSurPont > 0 && !directionVoitures.equals(direction))){
+        while(etat != Etat.FERME || bateauSousPont > 0 || (convoiEnAttente && direction != directionConvoi) || (convoiEnCours && direction != directionConvoi) || bateauxEnAttente > 0 || (voituresSurPont > 0 && !directionVoitures.equals(direction))){
             try {
                 wait();
             } catch (InterruptedException e) {
@@ -71,7 +76,7 @@ public class Pont {
 
         System.out.println(nom + " demande l'ouverture du pont.");
 
-        while(bateauSousPont > 0 || voituresSurPont > 0){
+        while(bateauSousPont > 0 || voituresSurPont > 0 || vehiculesEngages > 0 || convoiEnCours){
             try {
                 wait();
             } catch (InterruptedException e) {
@@ -206,7 +211,77 @@ public class Pont {
         }
         notifyAll();
     }
+    private Direction directionOpposee(Direction direction) {
 
+        if (direction == Direction.GAUCHE_DROITE) {
+            return Direction.DROITE_GAUCHE;
+        }
 
+        return Direction.GAUCHE_DROITE;
+    }
 
+    public synchronized void entrerConvoi(Direction direction, String nom) throws InterruptedException {
+
+        convoiEnAttente = true;
+        directionConvoi = direction;
+
+        Direction opposee = directionOpposee(direction);
+
+        System.out.println(nom + " arrive sur le pont.");
+
+        System.out.println("Blocage des nouvelles entrées : " + opposee);
+
+        // Attendre la sortie des véhicules opposés
+        while ((opposee == Direction.GAUCHE_DROITE && vehiculesGaucheDroite > 0) || (opposee == Direction.DROITE_GAUCHE && vehiculesDroiteGauche > 0) || convoiEnCours || etat != Etat.FERME) {
+            wait();
+        }
+
+        // Déterminer le premier segment selon le sens
+        int debut;
+        int sens;
+
+        if (direction == Direction.GAUCHE_DROITE) {
+            debut = 0;
+            sens = 1;
+        } else {
+            debut = N - 1;
+            sens = -1;
+        }
+
+        // Réserver les 4 segments simultanément
+        reserverSegments(nom, debut, 4, sens);
+
+        convoiEnCours = true;
+        convoiEnAttente = false;
+
+        System.out.println(nom + " entre sur le pont avec 4 segments.");
+    }
+
+    public synchronized void sortirConvoi(String nom) {
+
+        int debut;
+        int sens;
+
+        if (directionConvoi == Direction.GAUCHE_DROITE) {
+            debut = 0;
+            sens = 1;
+        } else {
+            debut = N - 1;
+            sens = -1;
+        }
+
+        // Libérer les 4 segments
+        libererSegments(nom, debut, 4, sens);
+
+        convoiEnCours = false;
+        convoiEnAttente = false;
+
+        System.out.println(nom + " a terminé sa traversée.");
+
+        System.out.println("Déblocage du sens opposé.");
+
+        directionConvoi = null;
+
+        notifyAll();
+    }
 }
