@@ -35,7 +35,13 @@ public class Pont {
         try {
             sleep(500);
         } catch (InterruptedException e) {
+            voituresSurPont--;
+            if (voituresSurPont == 0) {
+                directionVoitures = null;
+            }
+            notifyAll();
             Thread.currentThread().interrupt();
+            return;
         }
 
         sortirVoiture(nom);
@@ -59,20 +65,42 @@ public class Pont {
         bateauxEnAttente++;
         ouvertureDemandee = true;
 
+        System.out.println(nom + " demande l'ouverture du pont.");
+
         while(bateauSousPont > 0 || voituresSurPont > 0){
             try {
                 wait();
             } catch (InterruptedException e) {
                 bateauxEnAttente--;
-                Thread.currentThread().interrupt();
+                if (bateauxEnAttente == 0) {
+                    ouvertureDemandee = false;
+                }
                 notifyAll();
+                Thread.currentThread().interrupt();
                 return;
             }
         }
+        if (etat == Etat.FERME) {
+            etat = Etat.OUVERTURE;
+            System.out.println("Pont : FERME -> OUVERTURE");
 
-        etat = Etat.OUVERT;
+            try {
+                sleep(500);
+            } catch (InterruptedException e) {
+                etat = Etat.FERME;
+                bateauxEnAttente--;
+                if (bateauxEnAttente == 0) {
+                    ouvertureDemandee = false;
+                }
 
-        System.out.println("Pont : OUVERTURE -> OUVERT");
+                notifyAll();
+                Thread.currentThread().interrupt();
+                return;
+            }
+
+            etat = Etat.OUVERT;
+            System.out.println("Pont : OUVERTURE -> OUVERT");
+        }
 
         bateauxEnAttente--;
 
@@ -85,7 +113,9 @@ public class Pont {
         try {
             sleep(500);
         } catch (InterruptedException e) {
+            sortirBateau(nom);
             Thread.currentThread().interrupt();
+            return;
         }
 
         sortirBateau(nom);
@@ -99,6 +129,22 @@ public class Pont {
 
         if (bateauSousPont == 0){
             directionBateaux = null;
+
+            etat = Etat.FERMETURE;
+            System.out.println("Pont : OUVERT -> FERMETURE");
+
+            try {
+                sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            etat = Etat.FERME;
+            System.out.println("Pont : FERMETURE -> FERME");
+
+            if (bateauxEnAttente == 0) {
+                ouvertureDemandee = false;
+            }
         }
 
         notifyAll();
