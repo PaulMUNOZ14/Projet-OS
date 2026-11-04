@@ -6,15 +6,15 @@ public class Pont {
 
     private int voituresSurPont = 0;
     private int bateauSousPont = 0;
-    private String directionVoitures = null;
-    private String directionBateaux = null;
+    private Direction directionVoitures = null;
+    private Direction directionBateaux = null;
     private int bateauxEnAttente = 0;
     private Etat etat = Etat.FERME;
 
     public Pont() {
     }
 
-    public synchronized void entrerVoiture(String direction, String nom) {
+    public synchronized void entrerVoiture(Direction direction, String nom) {
 
         while(bateauSousPont > 0 || bateauxEnAttente > 0 || (voituresSurPont > 0 && !directionVoitures.equals(direction))){
             try {
@@ -29,7 +29,7 @@ public class Pont {
 
         directionVoitures = direction;
 
-        System.out.println(nom + " entre sur le pont de " + direction);
+        System.out.println(nom + " entre sur le pont de " + direction.toString());
 
         try {
             sleep(500);
@@ -52,7 +52,7 @@ public class Pont {
         notifyAll();
     }
 
-    public synchronized void entrerBateau(String direction, String nom) {
+    public synchronized void entrerBateau(Direction direction, String nom) {
 
         bateauxEnAttente++;
 
@@ -73,7 +73,7 @@ public class Pont {
 
         directionBateaux = direction;
 
-        System.out.println(nom + " passe sous le pont de " + direction);
+        System.out.println(nom + " passe sous le pont de " + direction.toString());
 
         try {
             sleep(500);

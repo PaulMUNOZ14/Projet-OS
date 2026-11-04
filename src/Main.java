@@ -1,18 +1,19 @@
 import Pont.Pont;
 import Vehicule.Voiture;
 import Vehicule.Bateau;
+import Pont.Direction;
 
 public class Main {
 
     public static void main(String[] args) {
 
         Pont pont = new Pont();
-        Voiture v1 = new Voiture("Voiture 1", "Gauche-Droite", pont);
-        Voiture v2 = new Voiture("Voiture 2", "Gauche-Droite", pont);
-        Voiture v3 = new Voiture("Voiture 3", "Droite-Gauche", pont);
-        Voiture v4 = new Voiture("Voiture 4", "Droite-Gauche", pont);
-        Bateau b1 = new Bateau("Bateau 1", "Nord-Sud", pont);
-        Bateau b2 = new Bateau("Bateau 2", "Sud-Nord", pont);
+        Voiture v1 = new Voiture("Voiture 1", Direction.GAUCHE_DROITE, pont);
+        Voiture v2 = new Voiture("Voiture 2", Direction.GAUCHE_DROITE, pont);
+        Voiture v3 = new Voiture("Voiture 3", Direction.DROITE_GAUCHE, pont);
+        Voiture v4 = new Voiture("Voiture 4", Direction.DROITE_GAUCHE, pont);
+        Bateau b1 = new Bateau("Bateau 1", Direction.NORD_SUD, pont);
+        Bateau b2 = new Bateau("Bateau 2", Direction.SUD_NORD, pont);
 
         // Démarrage des threads
         v1.start();
