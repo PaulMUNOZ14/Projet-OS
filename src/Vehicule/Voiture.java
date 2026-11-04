@@ -1,13 +1,14 @@
 package Vehicule;
 
 import Pont.Pont;
+import Pont.Direction;
 
 public class Voiture extends Thread implements IVehicule{
 
-    private String direction;
+    private Direction direction;
     private Pont pont;
 
-    public Voiture(String nom, String direction, Pont pont){
+    public Voiture(String nom, Direction direction, Pont pont){
         super(nom);
         this.direction = direction;
         this.pont = pont;
