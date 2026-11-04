@@ -10,13 +10,14 @@ public class Pont {
     private String directionBateaux = null;
     private int bateauxEnAttente = 0;
     private Etat etat = Etat.FERME;
+    private boolean ouvertureDemandee = false;
 
     public Pont() {
     }
 
     public synchronized void entrerVoiture(String direction, String nom) {
 
-        while(bateauSousPont > 0 || bateauxEnAttente > 0 || (voituresSurPont > 0 && !directionVoitures.equals(direction))){
+        while(etat != Etat.FERME || bateauSousPont > 0 || bateauxEnAttente > 0 || (voituresSurPont > 0 && !directionVoitures.equals(direction))){
             try {
                 wait();
             } catch (InterruptedException e) {
@@ -43,6 +44,7 @@ public class Pont {
     public synchronized void sortirVoiture(String nom){
         voituresSurPont--;
 
+
         System.out.println(nom + " quitte le pont");
 
         if (voituresSurPont == 0){
@@ -55,6 +57,7 @@ public class Pont {
     public synchronized void entrerBateau(String direction, String nom) {
 
         bateauxEnAttente++;
+        ouvertureDemandee = true;
 
         while(bateauSousPont > 0 || voituresSurPont > 0){
             try {
@@ -66,6 +69,10 @@ public class Pont {
                 return;
             }
         }
+
+        etat = Etat.OUVERT;
+
+        System.out.println("Pont : OUVERTURE -> OUVERT");
 
         bateauxEnAttente--;
 
