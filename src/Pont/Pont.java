@@ -80,8 +80,20 @@ public class Pont {
             Thread.currentThread().interrupt();
         }
 
-        sortirVoiture(nom);
+        sortirBateau(nom);
 
+    }
+
+    public synchronized void sortirBateau(String nom){
+        bateauSousPont--;
+
+        System.out.println(nom + " quitte le pont");
+
+        if (bateauSousPont == 0){
+            directionBateaux = null;
+        }
+
+        notifyAll();
     }
 
 }
