@@ -413,6 +413,6 @@ public class Pont {
     }
 
     private void log(String msg) {
-        System.out.println(String.format("%-58s G->D %s  D->G %s", msg, ligne(0, false),ligne(1, true)));
+        System.out.println(String.format("%-75s G->D %s  D->G %s", msg, ligne(0, false),ligne(1, true)));
     }
 }
