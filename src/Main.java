@@ -1,9 +1,11 @@
 import Pont.Controleur;
 import Pont.Direction;
 import Pont.Pont;
+import Vehicule.Ambulance;
 import Vehicule.Bateau;
 import Vehicule.Camion;
 import Vehicule.ConvoiExceptionnel;
+import Vehicule.Pompier;
 import Vehicule.Voiture;
 
 public class Main {
@@ -23,6 +25,8 @@ public class Main {
                 new Bateau("Bateau 2", Direction.SUD_NORD, pont),
                 new ConvoiExceptionnel("Convoi 2", Direction.DROITE_GAUCHE, pont),
                 new Voiture("Voiture 5", Direction.DROITE_GAUCHE, pont),
+                new Ambulance("Ambulance 1", Direction.GAUCHE_DROITE, pont),
+                new Pompier("Pompier 1", Direction.DROITE_GAUCHE, pont),
         };
         for (Thread t : acteurs) {
             t.start();
