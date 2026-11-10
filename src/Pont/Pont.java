@@ -1,7 +1,11 @@
 package Pont;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class Pont {
 
@@ -26,6 +30,15 @@ public class Pont {
 
     private boolean ouvertureAutorisee = true;
     private boolean arret = false;
+
+    // partie 5 : délai minimal entre deux ouvertures
+
+    private static final long DELAI_ENTRE_OUVERTURES_MS = 60_000;
+    private static final DateTimeFormatter FORMAT_HEURE = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    private LocalTime heureFermetureComplete = null;
+    private LocalTime heureProchaineOuverture = null;
+    private final Timer timerOuverture = new Timer("TimerOuverture", true);
 
     private int voie(Direction d) {
         return d == Direction.GAUCHE_DROITE ? 0 : 1;
@@ -213,9 +226,40 @@ public class Pont {
                 etat =Etat.FERME;
                 entreesBloquees = false;
                 log("Pont : FERMETURE -> FERME");
+                planifierProchaineOuverture();
                 notifyAll();
             }
         }
+    }
+
+    /**
+     * Appelée (monitor déjà détenu) à la fin de chaque fermeture complète :
+     * mémorise l'heure de fermeture, calcule T_prochaine_ouverture = T_fermeture + délai,
+     * interdit toute ouverture d'ici là et programme un TimerTask qui la ré-autorise.
+     */
+    private void planifierProchaineOuverture() {
+        heureFermetureComplete = LocalTime.now();
+        heureProchaineOuverture = heureFermetureComplete.plusNanos(DELAI_ENTRE_OUVERTURES_MS * 1_000_000L);
+        ouvertureAutorisee = false;
+        log("Fermeture complète à " + heureFermetureComplete.format(FORMAT_HEURE)
+                + " : prochaine ouverture à " + heureProchaineOuverture.format(FORMAT_HEURE));
+
+        timerOuverture.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                synchronized (Pont.this) {
+                    ouvertureAutorisee = true;
+                    log("Délai écoulé (" + FORMAT_HEURE.format(LocalTime.now())
+                            + ") : ouverture à nouveau autorisée"
+                            + (fileBateaux.isEmpty() ? "" : " (" + fileBateaux.size() + " bateau(x) en attente)"));
+                    Pont.this.notifyAll();
+                }
+            }
+        }, DELAI_ENTRE_OUVERTURES_MS);
+    }
+
+    public synchronized LocalTime getHeureProchaineOuverture() {
+        return ouvertureAutorisee ? null : heureProchaineOuverture;
     }
 
     public synchronized void setOuvertureAutorisee(boolean autorisee) {
@@ -225,6 +269,7 @@ public class Pont {
 
     public synchronized void arreter() {
         arret = true;
+        timerOuverture.cancel();
         notifyAll();
     }
 
