@@ -1,287 +1,250 @@
 package Pont;
 
-import static java.lang.Thread.sleep;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class Pont {
 
-    private int voituresSurPont = 0;
-    private int bateauSousPont = 0;
-    private Direction directionVoitures = null;
-    private Direction directionBateaux = null;
-    private int bateauxEnAttente = 0;
+    public static final int N = 10;
+
+    private static final int DUREE_PAS = 300;
+    private static final int DUREE_OUVERTURE = 600;
+    private static final int DUREE_BATEAU = 700;
+
+    private final String[][] segments = new String[2][N];
+
+    private final int[] vehiculesSurPont = new int[2];
+
+    private Direction convoiDirection = null;
+
     private Etat etat = Etat.FERME;
-    private boolean ouvertureDemandee = false;
-    private final int N = 10;
-    private final String[] segments = new String[N];
-    private Direction directionActive = null;
-    private int vehiculesEngages = 0;
-    private boolean convoiEnAttente = false;
-    private boolean convoiEnCours = false;
-    private Direction directionConvoi = null;
-    private int vehiculesGaucheDroite = 0;
-    private int vehiculesDroiteGauche = 0;
 
-    public Pont() {
+    private boolean entreesBloquees = false;
+
+    private final Queue<Thread> fileBateaux = new LinkedList<>();
+    private boolean bateauEnTraversee = false;
+
+    private boolean ouvertureAutorisee = true;
+    private boolean arret = false;
+
+    private int voie(Direction d) {
+        return d == Direction.GAUCHE_DROITE ? 0 : 1;
     }
 
-    public synchronized void entrerVoiture(Direction direction, String nom) {
+    private Direction opposee(Direction d) {
+        return d == Direction.GAUCHE_DROITE ? Direction.DROITE_GAUCHE : Direction.GAUCHE_DROITE;
+    }
 
-        while(etat != Etat.FERME || bateauSousPont > 0 || (convoiEnAttente && direction != directionConvoi) || (convoiEnCours && direction != directionConvoi) || bateauxEnAttente > 0 || (voituresSurPont > 0 && !directionVoitures.equals(direction))){
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-        }
-
-        voituresSurPont ++;
-
-        directionVoitures = direction;
-
-        System.out.println(nom + " entre sur le pont de " + direction.toString());
-
+    public void traverserTerrestre(String nom, Direction dir, int longueur, boolean exceptionnel)
+            throws InterruptedException {
+        int voie = voie(dir);
+        boolean entre = false;
         try {
-            sleep(500);
-        } catch (InterruptedException e) {
-            voituresSurPont--;
-            if (voituresSurPont == 0) {
-                directionVoitures = null;
-            }
-            notifyAll();
-            Thread.currentThread().interrupt();
-            return;
-        }
-
-        sortirVoiture(nom);
-    }
-
-    public synchronized void sortirVoiture(String nom){
-        voituresSurPont--;
-
-
-        System.out.println(nom + " quitte le pont");
-
-        if (voituresSurPont == 0){
-            directionVoitures = null;
-        }
-
-        notifyAll();
-    }
-
-    public synchronized void entrerBateau(Direction direction, String nom) {
-
-        bateauxEnAttente++;
-        ouvertureDemandee = true;
-
-        System.out.println(nom + " demande l'ouverture du pont.");
-
-        while(bateauSousPont > 0 || voituresSurPont > 0 || vehiculesEngages > 0 || convoiEnCours){
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                bateauxEnAttente--;
-                if (bateauxEnAttente == 0) {
-                    ouvertureDemandee = false;
-                }
-                notifyAll();
-                Thread.currentThread().interrupt();
-                return;
-            }
-        }
-        if (etat == Etat.FERME) {
-            etat = Etat.OUVERTURE;
-            System.out.println("Pont : FERME -> OUVERTURE");
-
-            try {
-                sleep(500);
-            } catch (InterruptedException e) {
-                etat = Etat.FERME;
-                bateauxEnAttente--;
-                if (bateauxEnAttente == 0) {
-                    ouvertureDemandee = false;
-                }
-
-                notifyAll();
-                Thread.currentThread().interrupt();
-                return;
+            entrer(nom, dir, longueur, exceptionnel);
+            entre = true;
+            int tete = longueur - 1;
+            while (tete < N - 1) {
+                Thread.sleep(DUREE_PAS);
+                avancer(nom, voie, tete, longueur);
+                tete++;
             }
 
-            etat = Etat.OUVERT;
-            System.out.println("Pont : OUVERTURE -> OUVERT");
-        }
-
-        bateauxEnAttente--;
-
-        bateauSousPont++;
-
-        directionBateaux = direction;
-
-        System.out.println(nom + " passe sous le pont de " + direction.toString());
-
-        try {
-            sleep(500);
-        } catch (InterruptedException e) {
-            sortirBateau(nom);
-            Thread.currentThread().interrupt();
-            return;
-        }
-
-        sortirBateau(nom);
-
-    }
-
-    public synchronized void sortirBateau(String nom){
-        bateauSousPont--;
-
-        System.out.println(nom + " quitte le pont");
-
-        if (bateauSousPont == 0){
-            directionBateaux = null;
-
-            etat = Etat.FERMETURE;
-            System.out.println("Pont : OUVERT -> FERMETURE");
-
-            try {
-                sleep(500);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+            for (int s = tete - longueur + 1; s <= tete; s++) {
+                Thread.sleep(DUREE_PAS);
+                liberer(nom, voie, s);
             }
-
-            etat = Etat.FERME;
-            System.out.println("Pont : FERMETURE -> FERME");
-
-            if (bateauxEnAttente == 0) {
-                ouvertureDemandee = false;
+        } finally {
+            if (entre) {
+                quitter(nom, voie, exceptionnel);
             }
         }
-
-        notifyAll();
     }
 
-    private boolean estDirectionTerrestre(Direction direction) {
+    private boolean peutEntrer(Direction dir, int longueur, boolean exceptionnel) {
+        int voie = voie(dir);
+        if (etat != Etat.FERME || entreesBloquees) {
+            return false;
+        }
+        if (exceptionnel) {
 
-        return direction == Direction.GAUCHE_DROITE
-                || direction == Direction.DROITE_GAUCHE;
-    }
+            if (vehiculesSurPont[1 - voie] > 0) {
+                return false;
+            }
+        } else if (convoiDirection != null && convoiDirection != dir) {
 
-    private int pas(Direction direction) {
-
-        if (direction == Direction.GAUCHE_DROITE) {
-            return 1;
+            return false;
         }
 
-        return -1;
-    }
-
-    private synchronized void reserverSegments(String nom, int debut, int longueur, int pas)throws InterruptedException{
-        while(true){
-            boolean disponible= true;
-            for (int i = 0; i < longueur; i++) {
-                int indice = debut + i * pas;
-                if (indice < 0 || indice >= N || segments[indice] != null) {
-                    disponible = false;
-                    break;
-                }
-            }
-            if(disponible){
-                for (int i = 0; i < longueur; i++) {
-
-                    int indice = debut + i * pas;
-
-                    segments[indice] = nom;
-                }
-                return;
-            }
-            wait();
-        }
-
-
-
-
-    }
-    private synchronized void libererSegments(String nom, int debut, int longueur, int pas){
         for (int i = 0; i < longueur; i++) {
-            int indice = debut + i * pas;
-
-            if (indice >= 0 && indice < N && nom.equals(segments[indice])) {
-
-                segments[indice] = null;
+            if (segments[voie][i] != null) {
+                return false;
             }
         }
-        notifyAll();
+        return true;
     }
-    private Direction directionOpposee(Direction direction) {
 
-        if (direction == Direction.GAUCHE_DROITE) {
-            return Direction.DROITE_GAUCHE;
+    private synchronized void entrer(String nom, Direction dir, int longueur, boolean exceptionnel)
+            throws InterruptedException {
+        int voie = voie(dir);
+        if (exceptionnel) {
+            while (convoiDirection != null) {
+                wait();
+            }
+            convoiDirection = dir;
+            log(nom + " arrive : entrée " + opposee(dir) + " bloquée");
         }
-
-        return Direction.GAUCHE_DROITE;
+        try {
+            while (!peutEntrer(dir, longueur, exceptionnel)) {
+                wait();
+            }
+        } catch (InterruptedException e) {
+            if (exceptionnel) {
+                convoiDirection = null;
+                notifyAll();
+            }
+            throw e;
+        }
+        for (int i = 0; i < longueur; i++) {
+            segments[voie][i] = nom;
+        }
+        vehiculesSurPont[voie]++;
+        log(nom + " entre sur le pont (" + longueur + " segment(s))");
     }
 
-    public synchronized void entrerConvoi(Direction direction, String nom) throws InterruptedException {
-
-        convoiEnAttente = true;
-        directionConvoi = direction;
-
-        Direction opposee = directionOpposee(direction);
-
-        System.out.println(nom + " arrive sur le pont.");
-
-        System.out.println("Blocage des nouvelles entrées : " + opposee);
-
-        // Attendre la sortie des véhicules opposés
-        while ((opposee == Direction.GAUCHE_DROITE && vehiculesGaucheDroite > 0) || (opposee == Direction.DROITE_GAUCHE && vehiculesDroiteGauche > 0) || convoiEnCours || etat != Etat.FERME) {
+    private synchronized void avancer(String nom, int voie, int tete, int longueur)
+            throws InterruptedException {
+        while (segments[voie][tete + 1] != null) {
             wait();
         }
-
-        // Déterminer le premier segment selon le sens
-        int debut;
-        int sens;
-
-        if (direction == Direction.GAUCHE_DROITE) {
-            debut = 0;
-            sens = 1;
-        } else {
-            debut = N - 1;
-            sens = -1;
-        }
-
-        // Réserver les 4 segments simultanément
-        reserverSegments(nom, debut, 4, sens);
-
-        convoiEnCours = true;
-        convoiEnAttente = false;
-
-        System.out.println(nom + " entre sur le pont avec 4 segments.");
+        segments[voie][tete + 1] = nom;
+        segments[voie][tete - longueur + 1] = null;
+        log(nom + " avance");
+        notifyAll();
     }
 
-    public synchronized void sortirConvoi(String nom) {
-
-        int debut;
-        int sens;
-
-        if (directionConvoi == Direction.GAUCHE_DROITE) {
-            debut = 0;
-            sens = 1;
-        } else {
-            debut = N - 1;
-            sens = -1;
+    private synchronized void liberer(String nom, int voie, int index) {
+        if (nom.equals(segments[voie][index])) {
+            segments[voie][index] = null;
         }
-
-        // Libérer les 4 segments
-        libererSegments(nom, debut, 4, sens);
-
-        convoiEnCours = false;
-        convoiEnAttente = false;
-
-        System.out.println(nom + " a terminé sa traversée.");
-
-        System.out.println("Déblocage du sens opposé.");
-
-        directionConvoi = null;
-
         notifyAll();
+    }
+
+    private synchronized void quitter(String nom, int voie, boolean exceptionnel) {
+        for (int i = 0; i < N; i++) {
+            if (nom.equals(segments[voie][i])) {
+                segments[voie][i] = null;
+            }
+        }
+        vehiculesSurPont[voie]--;
+        if (exceptionnel) {
+            convoiDirection = null;
+            log(nom + " a quitté le pont : sens opposé débloqué");
+        } else {
+            log(nom + " a quitté le pont");
+        }
+        notifyAll();
+    }
+
+    // fin partie 3
+
+    // partie 4
+
+    public void traverserBateau(String nom, Direction dir) throws InterruptedException {
+        Thread moi = Thread.currentThread();
+        synchronized (this) {
+            fileBateaux.add(moi);
+            log(nom + " (" +dir + ") s'enregistre dans la file (" + fileBateaux.size() + " en attente)");
+            notifyAll();
+            try {
+                while (!(etat == Etat.OUVERT && fileBateaux.peek() == moi && !bateauEnTraversee)) {
+                    wait();
+                }
+            } catch (InterruptedException e) {
+                fileBateaux.remove(moi);
+                notifyAll();
+                throw e;
+            }
+            fileBateaux.poll();
+            bateauEnTraversee = true;
+            log(nom+ " passe sous le pont");
+        }
+        try {
+            Thread.sleep(DUREE_BATEAU);
+        } finally {
+            synchronized (this) {
+                bateauEnTraversee = false;
+                log(nom + " a fini de passer,");
+                notifyAll();
+            }
+        }
+    }
+
+    public void executerControleur() throws InterruptedException {
+        while (true) {
+            synchronized (this) {
+                while (!arret && !(ouvertureAutorisee && !fileBateaux.isEmpty())) {
+                    wait();
+                }
+                if (arret) {
+                    return;
+                }
+                entreesBloquees = true;
+                log("Ouverture prise en charge : entrées bloquées");
+                while (vehiculesSurPont[0] > 0 || vehiculesSurPont[1] > 0) {
+                    wait();
+                }
+                etat = Etat.OUVERTURE;
+                log("Pont : FERME -> OUVERTURE");
+            }
+            Thread.sleep(DUREE_OUVERTURE);
+            synchronized (this) {
+                etat = Etat.OUVERT;
+                log("Pont : OUVERTURE -> OUVERT");
+                notifyAll();
+                while (!fileBateaux.isEmpty() || bateauEnTraversee) {
+                    wait();
+                }
+
+                etat = Etat.FERMETURE;
+                log("Pont : OUVERT -> FERMETURE (file vide)");
+            }
+            Thread.sleep(DUREE_OUVERTURE);
+            synchronized (this) {
+                etat =Etat.FERME;
+                entreesBloquees = false;
+                log("Pont : FERMETURE -> FERME");
+                notifyAll();
+            }
+        }
+    }
+
+    public synchronized void setOuvertureAutorisee(boolean autorisee) {
+        this.ouvertureAutorisee = autorisee;
+        notifyAll();
+    }
+
+    public synchronized void arreter() {
+        arret = true;
+        notifyAll();
+    }
+
+    private String code(String nom) {
+        if (nom==null) {
+            return ".";
+        }
+        return nom.length() > 3 ? nom.substring(0, 2) + nom.substring(nom.lastIndexOf(' ') + 1) : nom;
+    }
+
+    private String ligne(int voie, boolean inverse) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int k = 0; k<N; k++) {
+            int i = inverse ? N -1 -k : k;
+            sb.append(String.format("%-4s", code(segments[voie][i])));
+        }
+        return sb.append("]").toString();
+    }
+
+    private void log(String msg) {
+        System.out.println(String.format("%-58s G->D %s  D->G %s", msg, ligne(0, false),ligne(1, true)));
     }
 }
