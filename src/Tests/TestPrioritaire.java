@@ -11,9 +11,12 @@ import Vehicule.Voiture;
  * Test de la partie 6 : un camion et des voitures sont sur le pont quand une ambulance (G->D)
  * puis un véhicule de pompiers (D->G) arrivent. Les véhicules du même sens que le prioritaire
  * doivent se ranger puis reprendre ; ceux de l'autre sens ne sont pas gênés.
+ *
+ * <p>Exécution : {@code java -cp PontMobile.jar Tests.TestPrioritaire}</p>
  */
 public class TestPrioritaire {
 
+    /** Lance le scénario et attend la fin de tous les acteurs. */
     public static void main(String[] args) throws InterruptedException {
         Pont pont = new Pont();
 

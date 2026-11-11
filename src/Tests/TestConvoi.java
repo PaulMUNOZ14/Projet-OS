@@ -6,8 +6,17 @@ import Pont.Direction;
 import Vehicule.Voiture;
 import Vehicule.ConvoiExceptionnel;
 
+/**
+ * Scénario de test de la partie 3 (segments) et 3.3 (convois exceptionnels) :
+ * deux convois exceptionnels se présentent en sens opposés, entourés de voitures.
+ * Vérifie qu'aucun véhicule du sens opposé ne croise un convoi, et que chacun
+ * n'occupe que le nombre de segments correspondant à sa longueur.
+ *
+ * <p>Exécution : {@code java -cp PontMobile.jar Tests.TestConvoi}</p>
+ */
 public class TestConvoi {
 
+    /** Lance le scénario et attend la fin de tous les véhicules. */
     public static void main(String[] args) {
 
         Pont pont = new Pont();

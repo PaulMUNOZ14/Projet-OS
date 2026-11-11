@@ -1,0 +1,36 @@
+PARTIES NON RÉALISÉES
+=====================
+
+Ce document recense les points du sujet qui n'ont pas été implémentés ou qui ont été
+simplifiés, conformément à la consigne « un fichier texte expliquant la ou les parties
+que vous n'avez pas pu faire ».
+
+1) Partie 4.2 — Remarque sur l'attente d'un bateau
+--------------------------------------------------
+Le sujet indique qu'il est « souhaitable qu'un bateau connaisse l'heure prévue à laquelle
+une nouvelle ouverture pourra être autorisée », tout en précisant explicitement que
+« cette contrainte est non prise en compte dans le programme ».
+
+Cette optimisation (faire « attendre » un bateau directement jusqu'à l'heure de réouverture,
+sans réveils inutiles) n'a donc PAS été implémentée. Un bateau qui arrive pendant le délai
+minimal d'une minute attend simplement que le Timer ré-autorise l'ouverture ; à ce moment,
+le contrôleur est réveillé et déclenche l'ouverture. Le comportement reste correct, seule
+l'optimisation est absente.
+
+2) Partie 2 — Choix du nombre d'états
+-------------------------------------
+Le sujet autorise « éventuellement deux états : FERMÉ et OUVERT ». Nous avons conservé les
+quatre états (FERME, OUVERTURE, OUVERT, FERMETURE) afin de respecter strictement le cycle
+de transitions FERME -> OUVERTURE -> OUVERT -> FERMETURE -> FERME. Ce n'est donc pas une
+partie non faite, mais un choix de conception signalé ici pour information.
+
+3) Partie 6 — Bande d'urgence
+-----------------------------
+Conformément au sujet (« pour simplifier la simulation, une bande d'urgence est prévue »),
+les véhicules du même sens que le véhicule prioritaire conservent l'association logique avec
+leurs segments et reprennent leur progression exactement où ils s'étaient arrêtés. La bande
+d'urgence est donc représentée logiquement (arrêt + reprise), et non par des cases dédiées
+dans le schéma du pont.
+
+Aucune autre partie du sujet (2, 3, 4, 5, 6) n'a été laissée de côté : toutes les
+fonctionnalités demandées sont implémentées et testables.
