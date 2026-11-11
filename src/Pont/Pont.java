@@ -1,5 +1,6 @@
 package Pont;
 
+import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
@@ -295,6 +296,7 @@ public class Pont {
             }
             fileBateaux.poll();
             bateauEnTraversee = true;
+            bateauAffiche = nom;
             log(nom+ " passe sous le pont");
         }
         try {
@@ -302,7 +304,8 @@ public class Pont {
         } finally {
             synchronized (this) {
                 bateauEnTraversee = false;
-                log(nom + " a fini de passer,");
+                bateauAffiche = null;
+                log(nom + " a fini de passer");
                 notifyAll();
             }
         }
@@ -392,27 +395,142 @@ public class Pont {
         notifyAll();
     }
 
+    // ------------------------------------------------------------------
+    // Affichage console (animation ANSI) : aucune incidence sur la synchronisation.
+    // Toutes les méthodes ci-dessous sont appelées sous le verrou du Pont (via log).
+    // ------------------------------------------------------------------
+
+    /** Nombre d'événements récents affichés sous le schéma. */
+    private static final int NB_EVENEMENTS_AFFICHES = 10;
+    /** Derniers événements (affichage uniquement). */
+    private final LinkedList<String> derniersEvenements = new LinkedList<>();
+    /** Nom du bateau en train de passer, null sinon (affichage uniquement : il a déjà quitté la file). */
+    private String bateauAffiche = null;
+
+    /** Code court d'un acteur pour tenir dans une cellule : "Voiture 1" -> "Vo1". */
     private String code(String nom) {
-        if (nom==null) {
-            return ".";
+        if (nom == null) {
+            return "";
         }
-        return nom.length() > 3 ? nom.substring(0, 2) + nom.substring(nom.lastIndexOf(' ') + 1) : nom;
+        if (nom.length() <= 3) {
+            return nom;
+        }
+        int espace = nom.lastIndexOf(' ');
+        return espace < 0 ? nom.substring(0, 3) : nom.substring(0, 2) + nom.substring(espace + 1);
     }
 
-    private String ligne(int voie, boolean inverse) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int k = 0; k<N; k++) {
-            int i = inverse ? N -1 -k : k;
-            if (prioritaire[voie][i] != null) {
-                sb.append(String.format("%-4s", "*" + code(prioritaire[voie][i])));
-            } else {
-                sb.append(String.format("%-4s", code(segments[voie][i])));
+    /** Largeur d'une case du pont, bordures exclues. */
+    private static final int LARGEUR_CASE = 5;
+    private static final String MARGE = "  ";
+
+    /** Ligne de séparation horizontale entre deux voies : +-----+-----+ ... */
+    private void ajouterBordure(StringBuilder s) {
+        s.append(MARGE).append("        ");
+        for (int k = 0; k < N; k++) {
+            s.append('+');
+            for (int c = 0; c < LARGEUR_CASE; c++) {
+                s.append('-');
             }
         }
-        return sb.append("]").toString();
+        s.append("+\n");
+    }
+
+    /** Dessine une voie en coordonnées physiques : la voie D->G est affichée de droite à gauche. */
+    private void ajouterVoie(StringBuilder s, int voie, boolean inverse) {
+        s.append(MARGE).append(inverse ? "G <- D  " : "G -> D  ");
+        for (int k = 0; k < N; k++) {
+            int i = inverse ? N - 1 - k : k;
+            String contenu = "";
+            if (prioritaire[voie][i] != null) {
+                contenu = "*" + code(prioritaire[voie][i]);
+            } else if (segments[voie][i] != null) {
+                contenu = code(segments[voie][i]);
+            }
+            s.append(String.format("|%-" + LARGEUR_CASE + "s", contenu));
+        }
+        s.append("|\n");
+    }
+
+    /** Situation des prioritaires sur une voie : libre, en attente, ou nom du véhicule qui traverse. */
+    private String urgence(int voie) {
+        for (int i = 0; i < N; i++) {
+            if (prioritaire[voie][i] != null) {
+                return prioritaire[voie][i];
+            }
+        }
+        if (prioritaireSurVoie[voie]) {
+            return "entre sur le pont";
+        }
+        return urgenceVoie[voie] > 0 ? "en attente" : "libre";
+    }
+
+    /** Texte décrivant le délai avant la prochaine ouverture autorisée. */
+    private String delaiAvantOuverture() {
+        if (ouvertureAutorisee) {
+            return "possible maintenant";
+        }
+        if (heureProchaineOuverture == null) {
+            return "indeterminee";
+        }
+        long secondes = Duration.between(LocalTime.now(), heureProchaineOuverture).getSeconds();
+        if (secondes < -12 * 3600) {
+            secondes += 24 * 3600; // passage de minuit
+        }
+        return "dans " + Math.max(0, secondes + 1) + " s (a " + FORMAT_HEURE.format(heureProchaineOuverture) + ")";
+    }
+
+    /** Début d'une ligne d'information : étiquette alignée sur 19 caractères. */
+    private String info(String etiquette) {
+        return MARGE + String.format("%-19s : ", etiquette);
+    }
+
+    /** Efface l'écran et redessine l'état complet du pont. */
+    private void afficher() {
+        String trait = "------------------------------------------------------------------------";
+        StringBuilder s = new StringBuilder("\033[H\033[2J\n");
+        s.append(trait.replace('-', '=')).append('\n');
+        s.append(String.format("%s%-62s%s\n", MARGE, "PONT MOBILE - SIMULATION", FORMAT_HEURE.format(LocalTime.now())));
+        s.append(trait.replace('-', '=')).append("\n\n");
+
+        s.append(info("Etat du pont")).append(etat)
+                .append(entreesBloquees ? "  (entrees bloquees)" : "  (circulation autorisee)").append('\n');
+        s.append(info("Prochaine ouverture")).append(delaiAvantOuverture()).append('\n');
+        s.append(info("Prioritaires")).append("G->D ").append(urgence(0))
+                .append("  |  D->G ").append(urgence(1)).append("\n\n");
+
+        ajouterBordure(s);
+        ajouterVoie(s, 0, false);
+        ajouterBordure(s);
+        ajouterVoie(s, 1, true);
+        ajouterBordure(s);
+        s.append('\n');
+
+        s.append(info("Riviere")).append(bateauAffiche == null ? "libre" : bateauAffiche + " passe").append('\n');
+        StringBuilder file = new StringBuilder();
+        for (Thread t : fileBateaux) {
+            if (file.length() > 0) {
+                file.append(", ");
+            }
+            file.append(t.getName());
+        }
+        s.append(info("File des bateaux")).append(file.length() == 0 ? "vide" : file.toString()).append("\n\n");
+
+        s.append(trait).append('\n');
+        int dernier = derniersEvenements.size() - 1, k = 0;
+        for (String evenement : derniersEvenements) {
+            s.append(k++ == dernier ? "> " : "  ").append(evenement).append('\n');
+        }
+        s.append('\n').append(MARGE)
+                .append("Legende : Vo voiture, Ca camion, Co convoi, *Am ambulance, *Po pompier\n");
+        System.out.print(s);
+        System.out.flush();
     }
 
     private void log(String msg) {
-        System.out.println(String.format("%-75s G->D %s  D->G %s", msg, ligne(0, false),ligne(1, true)));
+        derniersEvenements.add(FORMAT_HEURE.format(LocalTime.now()) + "  " + msg);
+        if (derniersEvenements.size() > NB_EVENEMENTS_AFFICHES) {
+            derniersEvenements.removeFirst();
+        }
+        afficher();
     }
 }
